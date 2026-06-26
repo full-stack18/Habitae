@@ -1,0 +1,62 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  firebaseUid   String         @unique // Para vincular con la autenticación de Firebase
+  displayName   String?
+  isPremium     Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  habits        Habit[]
+  subscription  Subscription?
+}
+
+model Habit {
+  id          String         @id @default(uuid())
+  userId      String
+  title       String
+  description String?
+  frequency   Frequency      @default(DAILY)
+  color       String?        // Para la UI
+  createdAt   DateTime       @default(now())
+  logs        HabitLog[]
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model HabitLog {
+  id          String   @id @default(uuid())
+  habitId     String
+  date        DateTime @db.Date // Solo la fecha, sin la hora
+  completed   Boolean  @default(false)
+  habit       Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, date]) // Un hábito no puede registrarse dos veces el mismo día
+}
+
+model Subscription {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  stripeCustomerId String   @unique
+  status           String   // active, canceled, past_due
+  planId           String
+  currentPeriodEnd DateTime
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum Frequency {
+  DAILY
+  WEEKLY
+}
