@@ -5,10 +5,16 @@ import { PrismaClient } from '@prisma/client';
 import habitRoutes from './routes/habitRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import stripeRoutes from './routes/stripeRoutes';
+import rateLimit from 'express-rate-limit';
 
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 4000;
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100, // máximo 100 requests por IP
+  message: { error: 'Demasiadas solicitudes, intenta más tarde' }
+});
 
 // Middlewares
 app.use(cors({
@@ -17,6 +23,7 @@ app.use(cors({
 }));
 // ✅ Webhook raw DESPUÉS de CORS, ANTES de JSON
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
+app.use('/api/', limiter);
 
 // ✅ JSON para todo lo demás
 app.use(express.json());
