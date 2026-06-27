@@ -18,6 +18,8 @@ export default function Dashboard() {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [habits, setHabits] = useState<any[]>([]);
+  const [weeklyProgress, setWeeklyProgress] = useState<{ day: string; score: number }[]>([]);
+  const [isChartLoading, setIsChartLoading] = useState(false);
 
   // Función para cerrar sesión
   const handleLogout = async () => {
@@ -78,6 +80,24 @@ export default function Dashboard() {
     }
   };
 
+  const fetchWeeklyProgress = async () => {
+    if (!postgresUserId) return;
+    setIsChartLoading(true);
+    try {
+      const response = await fetch(
+        `http://localhost:4000/api/habits/user/${postgresUserId}/weekly-progress`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setWeeklyProgress(data);
+      }
+    } catch (error) {
+      console.error("Error al obtener progreso semanal:", error);
+    } finally {
+      setIsChartLoading(false);
+    }
+  };
+
   const handleDeleteHabit = async (habitId: string) => {
     if (!window.confirm("¿Seguro que quieres eliminar este hábito?")) return;
     try {
@@ -88,15 +108,20 @@ export default function Dashboard() {
     }
   };
 
-  const handleToggleHabit = async (habitId: string) => {
-    try {
-      const response = await fetch(`http://localhost:4000/api/habits/${habitId}/toggle`, { method: "POST" });
-      if (response.ok) {
-        const data = await response.json();
-        setHabits(habits.map(habit => habit.id === habitId ? { ...habit, isCompleted: data.isCompleted } : habit));
-      }
-    } catch (error) {
-      console.error("Error al marcar:", error);
+  const handleToggleHabit = async (habitId: string): Promise<void> => {
+    const response = await fetch(
+      `http://localhost:4000/api/habits/${habitId}/toggle`,
+      { method: "POST" }
+    );
+    if (response.ok) {
+      const data = await response.json();
+      setHabits(prev =>
+        prev.map(habit =>
+          habit.id === habitId ? { ...habit, isCompleted: data.isCompleted } : habit
+        )
+      );
+      // Actualizamos el gráfico después de cada toggle
+      fetchWeeklyProgress();
     }
   };
 
@@ -104,6 +129,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (postgresUserId) {
       fetchHabits();
+      fetchWeeklyProgress();
     }
   }, [postgresUserId]);
 
@@ -192,8 +218,7 @@ export default function Dashboard() {
                )}
             </div>
           </div>
-
-          <ProgressChart />
+            <ProgressChart data={weeklyProgress} isLoading={isChartLoading} />
         </div>
 
         <div className="space-y-6">

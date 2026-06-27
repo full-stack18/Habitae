@@ -133,4 +133,61 @@ router.post('/users/sync', async (req: Request, res: Response) => {
   }
 });
 
+// GET: Obtener el progreso de los últimos 7 días para un usuario
+router.get('/user/:userId/weekly-progress', async (req: Request, res: Response) => {
+  try {
+    const userId = req.params.userId as string;
+
+    // Calculamos el rango: hace 6 días (inicio) hasta hoy (fin)
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    // Obtenemos todos los HabitLogs de los hábitos del usuario en ese rango
+    const logs = await prisma.habitLog.findMany({
+      where: {
+        habit: { userId: userId },
+        date: {
+          gte: sevenDaysAgo,
+          lte: today,
+        },
+        completed: true,
+      },
+      select: {
+        date: true,
+      },
+    });
+
+    // Construimos un array de los 7 días con el conteo de hábitos completados
+    const result = [];
+    const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+    for (let i = 6; i >= 0; i--) {
+      const day = new Date();
+      day.setDate(day.getDate() - i);
+      day.setHours(0, 0, 0, 0);
+
+      // Contamos cuántos logs coinciden con este día
+      const count = logs.filter(log => {
+        const logDate = new Date(log.date);
+        logDate.setHours(0, 0, 0, 0);
+        return logDate.getTime() === day.getTime();
+      }).length;
+
+      result.push({
+        day: dayNames[day.getDay()],
+        score: count,
+      });
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error("Error al obtener progreso semanal:", error);
+    res.status(500).json({ error: 'Error al obtener el progreso semanal' });
+  }
+});
+
 export default router;
