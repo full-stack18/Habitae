@@ -21,11 +21,11 @@ app.use(cors({
   origin: 'http://localhost:3000', // Tu frontend
   credentials: true,
 }));
-// ✅ Webhook raw DESPUÉS de CORS, ANTES de JSON
+//  Webhook raw DESPUÉS de CORS, ANTES de JSON
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use('/api/', limiter);
 
-// ✅ JSON para todo lo demás
+//  JSON para todo lo demás
 app.use(express.json());
 
 
