@@ -1,7 +1,9 @@
+import './firebase';
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import habitRoutes from './routes/habitRoutes';
+import notificationRoutes from './routes/notificationRoutes';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -11,8 +13,10 @@ const PORT = process.env.PORT || 4000;
 app.use(cors());
 app.use(express.json()); // Permite recibir datos en formato JSON
 
+
 // Rutas
 app.use('/api/habits', habitRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Ruta de prueba (Healthcheck)
 app.get('/api/health', (req, res) => {

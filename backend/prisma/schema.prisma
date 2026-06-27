@@ -22,6 +22,7 @@ model User {
   updatedAt     DateTime       @updatedAt
   habits        Habit[]
   subscription  Subscription?
+  pushTokens    PushToken[]
 }
 
 model Habit {
@@ -54,6 +55,14 @@ model Subscription {
   planId           String
   currentPeriodEnd DateTime
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PushToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum Frequency {

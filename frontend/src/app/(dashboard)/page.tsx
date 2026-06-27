@@ -9,6 +9,9 @@ import StatCard from "@/components/StatCard";
 import HabitItem from "@/components/HabitItem";
 import ProgressChart from "@/components/ProgressChart";
 import AddHabitModal from "@/components/AddHabitModal";
+import StreakCard from "@/components/StreakCard";
+import { useNotifications } from "@/hooks/useNotifications";
+import NotificationButton from "@/components/NotificationButton";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -20,6 +23,10 @@ export default function Dashboard() {
   const [habits, setHabits] = useState<any[]>([]);
   const [weeklyProgress, setWeeklyProgress] = useState<{ day: string; score: number }[]>([]);
   const [isChartLoading, setIsChartLoading] = useState(false);
+  const [streaks, setStreaks] = useState({ currentStreak: 0, longestStreak: 0 });
+  const [isStreakLoading, setIsStreakLoading] = useState(false);
+  const { permission, requestPermission } = useNotifications(postgresUserId);
+
 
   // Función para cerrar sesión
   const handleLogout = async () => {
@@ -98,6 +105,25 @@ export default function Dashboard() {
     }
   };
 
+  const fetchStreaks = async () => {
+    if (!postgresUserId) return;
+    setIsStreakLoading(true);
+    try {
+      const response = await fetch(
+        `http://localhost:4000/api/habits/user/${postgresUserId}/streaks`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setStreaks(data);
+      }
+    } catch (error) {
+      console.error("Error al obtener rachas:", error);
+    } finally {
+      setIsStreakLoading(false);
+    }
+  };
+  
+
   const handleDeleteHabit = async (habitId: string) => {
     if (!window.confirm("¿Seguro que quieres eliminar este hábito?")) return;
     try {
@@ -120,8 +146,8 @@ export default function Dashboard() {
           habit.id === habitId ? { ...habit, isCompleted: data.isCompleted } : habit
         )
       );
-      // Actualizamos el gráfico después de cada toggle
       fetchWeeklyProgress();
+      fetchStreaks(); // <-- Añade esta línea
     }
   };
 
@@ -130,6 +156,7 @@ export default function Dashboard() {
     if (postgresUserId) {
       fetchHabits();
       fetchWeeklyProgress();
+      fetchStreaks();
     }
   }, [postgresUserId]);
 
@@ -176,16 +203,25 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* La racha es un cálculo complejo de fechas, lo dejaremos en 0 por ahora */}
-        <StatCard title="Racha Actual 🔥" value="0 días" /> 
-        
-        {/* Usamos las variables que acabamos de crear */}
-        <StatCard title="Tasa de Éxito" value={`${successRate}%`} />
-        <StatCard title="Hábitos Completados" value={`${completedHabits}/${totalHabits}`} subtitle="hoy" />
-        
-        {/* Total de horas lo podemos dejar fijo hasta que implementes un cronómetro */}
-        <StatCard title="Total de Horas" value="0h" subtitle="de focus" />
+      {/* Streakcard Rachas de Habitos Completados */}
+      <section className="space-y-4">
+        {/* Streak Card ocupa el ancho completo arriba */}
+        <StreakCard
+          currentStreak={streaks.currentStreak}
+          longestStreak={streaks.longestStreak}
+          isLoading={isStreakLoading}
+        />
+
+        {/* Las otras 3 StatCards debajo */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <StatCard title="Tasa de Éxito" value={`${successRate}%`} />
+          <StatCard
+            title="Hábitos Completados"
+            value={`${completedHabits}/${totalHabits}`}
+            subtitle="hoy"
+          />
+          <StatCard title="Total de Horas" value="0h" subtitle="de focus" />
+        </div>
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
