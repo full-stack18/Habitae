@@ -19,6 +19,26 @@ router.get('/user/:userId', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/create', async (req: Request, res: Response) => {
+  const { userId } = req.body;
+  
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { isPremium: true }
+  });
+
+  const habitCount = await prisma.habit.count({
+    where: { userId }
+  });
+
+  // Regla: máximo 5 hábitos para free, ilimitado para premium
+  if (!user?.isPremium && habitCount >= 5) {
+    res.status(403).json({ 
+      error: 'Límite de 5 hábitos alcanzado. ¡Actualiza a Premium!' 
+    });
+    return;
+  }
+
 // POST: Crear un nuevo hábito
 router.post('/', async (req: Request, res: Response) => {
   try {
@@ -36,6 +56,8 @@ router.post('/', async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({ error: 'Error al crear el hábito' });
   }
+});
+
 });
 
 // PUT: Actualizar un hábito existente

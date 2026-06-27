@@ -6,4 +6,3 @@ node_modules
 
 backend/src/firebase-admin-key.json
 
-.env

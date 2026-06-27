@@ -11,9 +11,15 @@ const prisma = new PrismaClient();
 const PORT = process.env.PORT || 4000;
 
 // Middlewares
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000', // Tu frontend
+  credentials: true,
+}));
+// ✅ Webhook raw DESPUÉS de CORS, ANTES de JSON
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
-app.use(express.json()); // Permite recibir datos en formato JSON
+
+// ✅ JSON para todo lo demás
+app.use(express.json());
 
 
 // Rutas
