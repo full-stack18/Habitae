@@ -38,9 +38,12 @@ export default function DashboardLayout({
 
         {/* Botón Upgrade */}
         <div className="p-4">
-          <button className="w-full bg-emerald-600 text-white py-2 rounded-lg font-medium hover:bg-emerald-700 transition-colors">
-            Actualizar a Pro
-          </button>
+            <button
+              onClick={() => window.location.href = '/?upgrade=true'}
+              className="w-full bg-emerald-600 text-white py-2 rounded-lg font-medium hover:bg-emerald-700 transition-colors"
+            >
+              Actualizar a Pro
+            </button>
         </div>
       </aside>
 

@@ -12,6 +12,8 @@ import AddHabitModal from "@/components/AddHabitModal";
 import StreakCard from "@/components/StreakCard";
 import { useNotifications } from "@/hooks/useNotifications";
 import NotificationButton from "@/components/NotificationButton";
+import { usePremium } from "@/hooks/usePremium";
+import UpgradeModal from "@/components/UpgradeModal";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -26,6 +28,11 @@ export default function Dashboard() {
   const [streaks, setStreaks] = useState({ currentStreak: 0, longestStreak: 0 });
   const [isStreakLoading, setIsStreakLoading] = useState(false);
   const { permission, requestPermission } = useNotifications(postgresUserId);
+  const { isPremium } = usePremium(postgresUserId);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+
+  const FREE_HABIT_LIMIT = 5;
+  const canAddHabit = isPremium || habits.length < FREE_HABIT_LIMIT;
 
 
   // Función para cerrar sesión
@@ -86,6 +93,20 @@ export default function Dashboard() {
       console.error("Error al obtener hábitos:", error);
     }
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('upgrade') === 'true' || params.get('payment') === 'success') {
+      if (params.get('payment') === 'success') {
+        // Mostrar mensaje de éxito
+        alert('🎉 ¡Bienvenido a Pro! Tu cuenta ha sido activada.');
+      } else {
+        setIsUpgradeModalOpen(true);
+      }
+      // Limpiar la URL
+      window.history.replaceState({}, '', '/');
+    }
+  }, []);
 
   const fetchWeeklyProgress = async () => {
     if (!postgresUserId) return;
@@ -192,6 +213,8 @@ export default function Dashboard() {
             Cerrar sesión
           </button>
 
+          <NotificationButton permission={permission} onRequest={requestPermission} />
+
           <input 
             type="text" 
             placeholder="Buscar..." 
@@ -229,11 +252,17 @@ export default function Dashboard() {
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-gray-900">Lista de Hábitos del Día</h3>
-              <button 
-                onClick={() => setIsModalOpen(true)}
-                className="text-sm bg-emerald-100 text-emerald-700 px-3 py-1 rounded-md font-medium hover:bg-emerald-200 transition-colors"
+              <button
+                onClick={() =>
+                  canAddHabit ? setIsModalOpen(true) : setIsUpgradeModalOpen(true)
+                }
+                className={`text-sm px-3 py-1 rounded-md font-medium transition-colors ${
+                  canAddHabit
+                    ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                    : "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                }`}
               >
-                + Nuevo
+                {canAddHabit ? "+ Nuevo" : `🔒 Límite (${habits.length}/${FREE_HABIT_LIMIT})`}
               </button>
             </div>
             
@@ -275,6 +304,13 @@ export default function Dashboard() {
           setIsModalOpen(false);
           fetchHabits();
         }} 
+      />
+
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        userId={postgresUserId}
+        userEmail={userEmail}
       />
     </div>
   );

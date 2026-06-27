@@ -95,80 +95,78 @@ router.post(
     }
 
     // Manejar los eventos de Stripe
+    // Manejar los eventos de Stripe
     switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object as Stripe.CheckoutSession;
-        const userId = session.metadata?.userId;
-        if (!userId) break;
-
-        const subscription = await stripe.subscriptions.retrieve(
-          session.subscription as string
-        );
-
-        await prisma.$transaction([
-          // Guardar/actualizar la suscripción
-          prisma.subscription.upsert({
-            where: { userId },
-            update: {
-              stripeCustomerId: session.customer as string,
-              status: subscription.status,
-              planId: subscription.items.data[0].price.id,
-              currentPeriodEnd: new Date(
-                subscription.current_period_end * 1000
-              ),
-            },
-            create: {
-              userId,
-              stripeCustomerId: session.customer as string,
-              status: subscription.status,
-              planId: subscription.items.data[0].price.id,
-              currentPeriodEnd: new Date(
-                subscription.current_period_end * 1000
-              ),
-            },
-          }),
-          // Marcar al usuario como premium
-          prisma.user.update({
-            where: { id: userId },
-            data: { isPremium: true },
-          }),
-        ]);
-
-        console.log(`✅ Usuario ${userId} activado como Premium`);
-        break;
-      }
-
-      case 'customer.subscription.deleted':
-      case 'customer.subscription.updated': {
-        const subscription = event.data.object as Stripe.Subscription;
-        const isActive = subscription.status === 'active';
-
-        await prisma.subscription.updateMany({
-          where: { stripeCustomerId: subscription.customer as string },
-          data: {
-            status: subscription.status,
-            currentPeriodEnd: new Date(
-              subscription.current_period_end * 1000
-            ),
-          },
-        });
-
-        // Si la suscripción se cancela, quitar Premium
-        if (!isActive) {
-          const sub = await prisma.subscription.findFirst({
-            where: { stripeCustomerId: subscription.customer as string },
-          });
-          if (sub) {
-            await prisma.user.update({
-              where: { id: sub.userId },
-              data: { isPremium: false },
-            });
-          }
-          console.log(`❌ Suscripción cancelada para customer ${subscription.customer}`);
+        case 'checkout.session.completed': {
+          // 1. Corrección: Usar Stripe.Checkout.Session
+          const session = event.data.object as Stripe.Checkout.Session;
+          const userId = session.metadata?.userId;
+          if (!userId) break;
+  
+          // 2. Corrección: Renombrar variable para no chocar con Prisma
+          const stripeSubscription = (await stripe.subscriptions.retrieve(
+            session.subscription as string
+          )) as Stripe.Subscription;
+  
+          await prisma.$transaction([
+            // Guardar/actualizar la suscripción
+            prisma.subscription.upsert({
+              where: { userId },
+              update: {
+                stripeCustomerId: session.customer as string,
+                status: stripeSubscription.status,
+                planId: stripeSubscription.items.data[0].price.id,
+                currentPeriodEnd: new Date((stripeSubscription as any).current_period_end * 1000),
+              },
+              create: {
+                userId,
+                stripeCustomerId: session.customer as string,
+                status: stripeSubscription.status,
+                planId: stripeSubscription.items.data[0].price.id,
+                currentPeriodEnd: new Date((stripeSubscription as any).current_period_end * 1000),
+              },
+            }),
+            // Marcar al usuario como premium
+            prisma.user.update({
+              where: { id: userId },
+              data: { isPremium: true },
+            }),
+          ]);
+  
+          console.log(`✅ Usuario ${userId} activado como Premium`);
+          break;
         }
-        break;
+  
+        case 'customer.subscription.deleted':
+        case 'customer.subscription.updated': {
+          // Aplicamos la misma corrección de nombre aquí
+          const stripeSubscription = event.data.object as Stripe.Subscription;
+          const isActive = stripeSubscription.status === 'active';
+  
+          await prisma.subscription.updateMany({
+            where: { stripeCustomerId: stripeSubscription.customer as string },
+            data: {
+              status: stripeSubscription.status,
+              currentPeriodEnd: new Date((stripeSubscription as any).current_period_end * 1000),
+            },
+          });
+  
+          // Si la suscripción se cancela, quitar Premium
+          if (!isActive) {
+            const sub = await prisma.subscription.findFirst({
+              where: { stripeCustomerId: stripeSubscription.customer as string },
+            });
+            if (sub) {
+              await prisma.user.update({
+                where: { id: sub.userId },
+                data: { isPremium: false },
+              });
+            }
+            console.log(`❌ Suscripción cancelada para customer ${stripeSubscription.customer}`);
+          }
+          break;
+        }
       }
-    }
 
     res.json({ received: true });
   }

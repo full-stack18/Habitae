@@ -289,4 +289,32 @@ router.get('/user/:userId/streaks', async (req: Request, res: Response) => {
   }
 });
 
+// GET: Obtener el estado premium de un usuario
+router.get('/user/:userId/status', async (req: Request, res: Response) => {
+  try {
+    const userId = req.params.userId as string;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        isPremium: true,
+        subscription: {
+          select: {
+            status: true,
+            currentPeriodEnd: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'Usuario no encontrado' });
+      return;
+    }
+
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener el estado del usuario' });
+  }
+});
+
 export default router;

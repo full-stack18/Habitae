@@ -1,3 +1,6 @@
+"use client";
+
+
 interface StatCardProps {
     title: string;
     value: string;
