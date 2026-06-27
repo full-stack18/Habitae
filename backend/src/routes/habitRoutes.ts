@@ -111,4 +111,26 @@ router.post('/:id/toggle', async (req: Request, res: Response) => {
   }
 });
 
+// POST: Sincronizar usuario de Firebase con PostgreSQL
+router.post('/users/sync', async (req: Request, res: Response) => {
+  const { email, firebaseUid } = req.body;
+
+  try {
+    // Upsert: Busca por firebaseUid. Si lo encuentra, lo actualiza; si no, lo crea.
+    const user = await prisma.user.upsert({
+      where: { firebaseUid: firebaseUid },
+      update: { email: email }, // Si ya existe, nos aseguramos de que el correo esté al día
+      create: {
+        email: email,
+        firebaseUid: firebaseUid,
+      },
+    });
+
+    res.json(user); // Devolvemos el usuario completo de Postgres (con su id real)
+  } catch (error) {
+    console.error("Error al sincronizar usuario:", error);
+    res.status(500).json({ error: 'Error en el servidor al sincronizar usuario' });
+  }
+});
+
 export default router;
